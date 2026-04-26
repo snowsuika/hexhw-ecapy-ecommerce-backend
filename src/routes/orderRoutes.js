@@ -6,6 +6,11 @@ const { buildAioParams, getMerchantTradeNo, queryTradeInfo } = require('../utils
 
 const router = express.Router();
 
+// POST /api/orders/:id/ecpay-return — No auth, ECPay browser redirect
+router.post('/:id/ecpay-return', (req, res) => {
+  res.redirect(`/orders/${req.params.id}?payment=ecpay`);
+});
+
 router.use(authMiddleware);
 
 function generateOrderNo() {
@@ -450,11 +455,6 @@ router.post('/:id/ecpay-form', (req, res) => {
   </form>
 </body>
 </html>`);
-});
-
-// POST /api/orders/:id/ecpay-return — Receives ECPay browser redirect, redirects to order page
-router.post('/:id/ecpay-return', (req, res) => {
-  res.redirect(`/orders/${req.params.id}?payment=ecpay`);
 });
 
 // POST /api/orders/:id/verify-payment — Query ECPay and update order status (requires JWT)
