@@ -22,27 +22,45 @@ createApp({
       success: { text: '付款成功！感謝您的購買。', cls: 'bg-sage/10 text-sage border border-sage/20' },
       failed: { text: '付款失敗，請重試。', cls: 'bg-red-50 text-red-600 border border-red-100' },
       cancel: { text: '付款已取消。', cls: 'bg-apricot/10 text-apricot border border-apricot/20' },
+      ecpay: { text: '正在確認付款結果...', cls: 'bg-gray-50 text-gray-600 border border-gray-200' },
     };
 
-    async function simulatePay(action) {
+    async function goToEcpay() {
       if (!order.value || paying.value) return;
       paying.value = true;
       try {
-        const res = await apiFetch('/api/orders/' + order.value.id + '/pay', {
-          method: 'PATCH',
-          body: JSON.stringify({ action })
+        const res = await fetch('/api/orders/' + orderId + '/ecpay-form', {
+          method: 'POST',
+          headers: Auth.getAuthHeaders(),
         });
-        order.value = res.data;
-        paymentResult.value = action === 'success' ? 'success' : 'failed';
+        if (!res.ok) {
+          const data = await res.json();
+          Notification.show(data.message || '無法前往付款頁面', 'error');
+          return;
+        }
+        const html = await res.text();
+        document.open();
+        document.write(html);
+        document.close();
       } catch (e) {
-        Notification.show('付款處理失敗', 'error');
+        Notification.show('前往付款頁面失敗', 'error');
       } finally {
         paying.value = false;
       }
     }
 
-    function handlePaySuccess() { simulatePay('success'); }
-    function handlePayFail() { simulatePay('fail'); }
+    async function verifyPayment() {
+      paying.value = true;
+      try {
+        const res = await apiFetch('/api/orders/' + orderId + '/verify-payment', { method: 'POST' });
+        order.value = { ...order.value, status: res.data.status };
+        paymentResult.value = res.data.status === 'paid' ? 'success' : 'failed';
+      } catch (e) {
+        Notification.show('確認付款結果失敗，請重新整理頁面', 'error');
+      } finally {
+        paying.value = false;
+      }
+    }
 
     onMounted(async function () {
       try {
@@ -53,8 +71,12 @@ createApp({
       } finally {
         loading.value = false;
       }
+
+      if (paymentResult.value === 'ecpay') {
+        await verifyPayment();
+      }
     });
 
-    return { order, loading, paying, paymentResult, statusMap, paymentMessages, handlePaySuccess, handlePayFail };
+    return { order, loading, paying, paymentResult, statusMap, paymentMessages, goToEcpay };
   }
 }).mount('#app');

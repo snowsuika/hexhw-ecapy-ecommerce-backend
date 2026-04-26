@@ -68,9 +68,19 @@ function initializeDatabase() {
     );
   `);
 
+  // Migrations
+  migrateOrders();
+
   // Seed data
   seedAdminUser();
   seedProducts();
+}
+
+function migrateOrders() {
+  const cols = db.pragma('table_info(orders)').map(c => c.name);
+  if (!cols.includes('ecpay_trade_no')) {
+    db.exec('ALTER TABLE orders ADD COLUMN ecpay_trade_no TEXT');
+  }
 }
 
 function seedAdminUser() {

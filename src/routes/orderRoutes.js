@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const authMiddleware = require('../middleware/authMiddleware');
+const { buildAioParams, getMerchantTradeNo, queryTradeInfo } = require('../utils/ecpay');
 
 const router = express.Router();
 
@@ -413,6 +414,76 @@ router.patch('/:id/pay', (req, res) => {
     error: null,
     message: action === 'success' ? '付款成功' : '付款失敗'
   });
+});
+
+// POST /api/orders/:id/ecpay-form — Returns auto-submit HTML to ECPay (requires JWT)
+router.post('/:id/ecpay-form', (req, res) => {
+  const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.userId);
+
+  if (!order) {
+    return res.status(404).json({ data: null, error: 'NOT_FOUND', message: '訂單不存在' });
+  }
+  if (order.status !== 'pending') {
+    return res.status(400).json({ data: null, error: 'INVALID_STATUS', message: '訂單狀態不是 pending，無法付款' });
+  }
+
+  const orderItems = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(order.id);
+  const params = buildAioParams(order, orderItems, order.id);
+
+  const isStaging = process.env.ECPAY_ENV !== 'production';
+  const ecpayUrl = isStaging
+    ? 'https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5'
+    : 'https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5';
+
+  const inputs = Object.entries(params)
+    .map(([k, v]) => `<input type="hidden" name="${k}" value="${String(v).replace(/"/g, '&quot;')}">`)
+    .join('\n    ');
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>前往付款...</title></head>
+<body onload="document.f.submit()">
+  <p style="font-family:sans-serif;text-align:center;margin-top:40px;">正在前往綠界付款頁面，請稍候...</p>
+  <form name="f" method="POST" action="${ecpayUrl}">
+    ${inputs}
+  </form>
+</body>
+</html>`);
+});
+
+// POST /api/orders/:id/ecpay-return — Receives ECPay browser redirect, redirects to order page
+router.post('/:id/ecpay-return', (req, res) => {
+  res.redirect(`/orders/${req.params.id}?payment=ecpay`);
+});
+
+// POST /api/orders/:id/verify-payment — Query ECPay and update order status (requires JWT)
+router.post('/:id/verify-payment', async (req, res) => {
+  const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, req.user.userId);
+
+  if (!order) {
+    return res.status(404).json({ data: null, error: 'NOT_FOUND', message: '訂單不存在' });
+  }
+
+  // Idempotent: already processed
+  if (order.status !== 'pending') {
+    return res.json({ data: { status: order.status }, error: null, message: '訂單狀態已更新' });
+  }
+
+  try {
+    const result = await queryTradeInfo(getMerchantTradeNo(order.order_no));
+
+    if (result.TradeStatus === '1') {
+      db.prepare('UPDATE orders SET status = ?, ecpay_trade_no = ? WHERE id = ?')
+        .run('paid', result.TradeNo || null, order.id);
+      return res.json({ data: { status: 'paid' }, error: null, message: '付款成功' });
+    } else {
+      db.prepare('UPDATE orders SET status = ? WHERE id = ?').run('failed', order.id);
+      return res.json({ data: { status: 'failed' }, error: null, message: '付款未完成' });
+    }
+  } catch (err) {
+    return res.status(500).json({ data: null, error: 'INTERNAL_ERROR', message: '查詢付款狀態失敗，請稍後再試' });
+  }
 });
 
 module.exports = router;
