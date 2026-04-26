@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-04-26
+
+### Fixed
+
+- 修正 `POST /api/orders/:id/ecpay-return` 被 `router.use(authMiddleware)` 攔截導致 401 的問題，將該路由移至 authMiddleware 掛載之前
+
 ## [1.1.0] - 2026-04-26
 
 ### Added

@@ -12,5 +12,6 @@ paths:
 - Request body 欄位使用 camelCase（`productId`），DB 欄位與 response 欄位使用 snake_case（`product_id`）
 - 每個路由 handler 前必須加 `@openapi` JSDoc 註解，供 `npm run openapi` 產生文件
 - 分頁查詢參數統一為 `page`（預設 1）和 `limit`（預設 10，最大 100），回傳 `{ items, pagination: { total, page, limit, totalPages } }`
+- 不需要認證的路由（例如第三方回呼端點）必須宣告在 `router.use(authMiddleware)` 之前，否則會被全域 middleware 攔截
 - 錯誤訊息不得洩漏內部實作細節（stack trace、SQL 語句、資料庫欄位名稱）
 - 401 錯誤不區分「帳號不存在」vs「密碼錯誤」，統一回傳相同訊息，防止帳號枚舉攻擊
