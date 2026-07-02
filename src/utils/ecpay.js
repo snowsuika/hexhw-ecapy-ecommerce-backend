@@ -68,7 +68,7 @@ function buildAioParams(order, orderItems, orderId) {
     ItemName: itemName,
     ReturnURL: `${baseUrl}/api/orders/${orderId}/ecpay-return`,
     OrderResultURL: `${baseUrl}/api/orders/${orderId}/ecpay-return`,
-    ChoosePayment: 'Credit',
+    ChoosePayment: 'ALL',
     EncryptType: 1,
   };
 

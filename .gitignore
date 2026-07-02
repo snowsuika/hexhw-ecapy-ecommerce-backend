@@ -38,3 +38,13 @@ coverage/
 
 .claude/*.local.json
 public/css/output.css
+
+# Playwright MCP test screenshots/logs
+.playwright-mcp/
+
+# MCP server config (local, may contain secrets/paths)
+.mcp.json
+
+# Pencil design files and generated design assets
+*.pen
+designs/
