@@ -1,84 +1,103 @@
 <div id="app" data-order-id="<%= orderId %>" data-payment-result="<%= paymentResult %>">
-  <h1 class="text-2xl font-bold text-text-primary mb-6" style="font-family: 'Noto Serif TC', serif;">訂單詳情</h1>
-
-  <div v-if="loading" class="flex justify-center py-12">
-    <div class="w-8 h-8 border-4 border-rose-primary border-t-transparent rounded-full animate-spin"></div>
-  </div>
-
-  <template v-else-if="order">
-    <!-- Payment Result Alert -->
-    <div
-      v-if="paymentResult && paymentMessages[paymentResult]"
-      class="rounded-xl p-4 mb-6 text-sm"
-      :class="paymentMessages[paymentResult].cls"
-    >
-      {{ paymentMessages[paymentResult].text }}
+  <div class="max-w-[1440px] mx-auto px-6 md:px-16 py-12">
+    <div class="flex flex-col gap-2 mb-8">
+      <h1 class="font-serif text-3xl font-bold text-accent-gold-light">訂單詳情</h1>
     </div>
 
-    <!-- Order Info -->
-    <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
-      <div class="flex items-start justify-between">
-        <div>
-          <p class="text-sm text-text-secondary">訂單編號：{{ order.order_no }}</p>
-          <p class="text-xs text-text-muted mt-1">建立日期：{{ new Date(order.created_at).toLocaleDateString('zh-TW') }}</p>
-        </div>
-        <span
-          class="text-xs px-3 py-1 rounded-full font-medium"
-          :class="statusMap[order.status]?.cls || 'bg-gray-100 text-gray-600'"
-        >
-          {{ statusMap[order.status]?.label || order.status }}
-        </span>
-      </div>
+    <div v-if="loading" class="flex justify-center py-24">
+      <div class="spinner"></div>
     </div>
 
-    <!-- Recipient Info -->
-    <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
-      <h2 class="font-medium text-text-primary mb-3">收件資訊</h2>
-      <div class="text-sm space-y-2 text-text-secondary">
-        <p>收件人：{{ order.recipient_name }}</p>
-        <p>Email：{{ order.recipient_email }}</p>
-        <p>地址：{{ order.recipient_address }}</p>
-      </div>
-    </div>
-
-    <!-- Order Items -->
-    <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
-      <h2 class="font-medium text-text-primary mb-3">商品明細</h2>
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-gray-100 text-text-muted">
-            <th class="text-left py-2 font-normal">商品名稱</th>
-            <th class="text-right py-2 font-normal">單價</th>
-            <th class="text-right py-2 font-normal">數量</th>
-            <th class="text-right py-2 font-normal">小計</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in order.items" :key="item.id" class="border-b border-gray-50">
-            <td class="py-3 text-text-primary">{{ item.product_name }}</td>
-            <td class="py-3 text-right text-text-secondary">NT$ {{ item.product_price.toLocaleString() }}</td>
-            <td class="py-3 text-right text-text-secondary">{{ item.quantity }}</td>
-            <td class="py-3 text-right text-text-primary font-medium">NT$ {{ (item.product_price * item.quantity).toLocaleString() }}</td>
-          </tr>
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="3" class="pt-3 text-right font-bold text-text-primary">總計</td>
-            <td class="pt-3 text-right font-bold text-rose-primary text-lg">NT$ {{ order.total_amount.toLocaleString() }}</td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-
-    <!-- Payment Button -->
-    <div v-if="order.status === 'pending'" class="flex gap-4">
-      <button
-        @click="goToEcpay"
-        :disabled="paying"
-        class="bg-rose-primary text-white px-8 py-3 rounded-full text-sm font-medium hover:bg-rose-primary/90 transition-colors disabled:opacity-50"
+    <template v-else-if="order">
+      <!-- Payment Alert -->
+      <div
+        v-if="paymentResult && paymentMessages[paymentResult]"
+        class="card-elevated px-6 py-4 mb-7 text-sm tracking-wide"
+        :class="paymentMessages[paymentResult].cls"
       >
-        {{ paying ? '處理中...' : '前往綠界付款' }}
-      </button>
-    </div>
-  </template>
+        {{ paymentMessages[paymentResult].text }}
+      </div>
+
+      <div class="flex flex-col lg:flex-row gap-8">
+        <!-- Left Column -->
+        <div class="flex-1 flex flex-col gap-6">
+          <!-- Order Info -->
+          <div class="bg-bg-surface border border-border-subtle p-7 flex items-start justify-between">
+            <div class="flex flex-col gap-2">
+              <p class="text-text-secondary text-sm">訂單編號：{{ order.order_no }}</p>
+              <p class="text-text-muted text-xs">建立日期：{{ new Date(order.created_at).toLocaleDateString('zh-TW') }}</p>
+            </div>
+            <span :class="statusMap[order.status]?.cls || 'status-badge-pending'">
+              {{ statusMap[order.status]?.label || order.status }}
+            </span>
+          </div>
+
+          <!-- Recipient -->
+          <div class="bg-bg-surface border border-border-subtle p-7 flex flex-col gap-4">
+            <h2 class="text-text-primary text-base font-medium">收件資訊</h2>
+            <div class="flex gap-3 text-sm">
+              <span class="text-text-muted w-16 flex-shrink-0">收件人</span>
+              <span class="text-text-secondary">{{ order.recipient_name }}</span>
+            </div>
+            <div class="flex gap-3 text-sm">
+              <span class="text-text-muted w-16 flex-shrink-0">Email</span>
+              <span class="text-text-secondary">{{ order.recipient_email }}</span>
+            </div>
+            <div class="flex gap-3 text-sm">
+              <span class="text-text-muted w-16 flex-shrink-0">地址</span>
+              <span class="text-text-secondary">{{ order.recipient_address }}</span>
+            </div>
+          </div>
+
+          <!-- Items -->
+          <div class="bg-bg-surface border border-border-subtle p-7 flex flex-col gap-5">
+            <h2 class="text-text-primary text-base font-medium">商品明細</h2>
+            <div class="flex justify-between text-xs text-text-muted pb-2 border-b border-border-gold">
+              <span>商品名稱</span>
+              <div class="flex gap-8">
+                <span class="w-16 text-right">單價</span>
+                <span class="w-10 text-right">數量</span>
+                <span class="w-20 text-right">小計</span>
+              </div>
+            </div>
+            <div
+              v-for="item in order.items"
+              :key="item.id"
+              class="flex justify-between text-sm py-3"
+            >
+              <span class="text-text-primary">{{ item.product_name }}</span>
+              <div class="flex gap-8 text-text-secondary">
+                <span class="w-16 text-right">NT$ {{ item.product_price.toLocaleString() }}</span>
+                <span class="w-10 text-right">{{ item.quantity }}</span>
+                <span class="w-20 text-right text-text-primary font-medium">NT$ {{ (item.product_price * item.quantity).toLocaleString() }}</span>
+              </div>
+            </div>
+            <div class="flex justify-end gap-4 pt-4 border-t border-border-gold">
+              <span class="text-text-primary font-bold">總計</span>
+              <span class="text-accent-rose-light text-lg font-bold">NT$ {{ order.total_amount.toLocaleString() }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="lg:w-[360px] flex-shrink-0 flex flex-col gap-5">
+          <div class="overflow-hidden border border-border-gold">
+            <img
+              src="https://images.unsplash.com/photo-1615182787503-08365d1e7fae?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w4NDM0ODN8MHwxfHJhbmRvbXx8fHx8fHx8fDE3ODI4OTEyODJ8&ixlib=rb-4.1.0&q=80&w=720"
+              alt="花束"
+              class="w-full h-[400px] object-cover"
+            />
+          </div>
+          <button
+            v-if="order.status === 'pending'"
+            @click="goToEcpay"
+            :disabled="paying"
+            class="btn-primary w-full"
+          >
+            {{ paying ? '處理中...' : '前往綠界付款' }}
+          </button>
+        </div>
+      </div>
+    </template>
+  </div>
 </div>

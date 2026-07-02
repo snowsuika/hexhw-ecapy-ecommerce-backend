@@ -1,26 +1,26 @@
-<header class="sticky top-0 z-50 bg-white shadow-sm border-b border-rose-bg">
-  <div class="max-w-7xl mx-auto flex items-center justify-between px-4 h-16">
-    <a href="/" class="text-xl font-bold text-rose-primary" style="font-family: 'Noto Serif TC', serif;">
+<header class="sticky top-0 z-50 bg-bg-surface border-b border-border-gold">
+  <div class="max-w-[1440px] mx-auto flex items-center justify-between px-4 md:px-16 h-24">
+    <a href="/" class="font-serif text-2xl font-bold text-accent-gold-light tracking-[0.2em]">
       花漾生活
     </a>
 
-    <nav class="flex items-center gap-6 text-sm text-text-secondary">
-      <a href="/" class="hover:text-rose-primary transition-colors">商品列表</a>
-      <a href="/cart" class="hover:text-rose-primary transition-colors relative">
+    <nav class="hidden sm:flex items-center gap-8 text-sm">
+      <a href="/" class="text-accent-gold-light hover:text-text-primary transition-colors">商品列表</a>
+      <a href="/cart" class="text-text-secondary hover:text-accent-gold-light transition-colors relative">
         購物車
         <span
           id="cart-badge"
-          class="absolute -top-2 -right-4 bg-rose-primary text-white text-xs rounded-full w-5 h-5 items-center justify-center"
+          class="absolute -top-2 -right-5 bg-accent-rose-light text-white text-xs rounded-full w-5 h-5 items-center justify-center"
           style="display: none;"
         ></span>
       </a>
-      <a id="orders-link" href="/orders" class="hover:text-rose-primary transition-colors" style="display: none;">
+      <a id="orders-link" href="/orders" class="text-text-secondary hover:text-accent-gold-light transition-colors" style="display: none;">
         我的訂單
       </a>
     </nav>
 
     <div id="auth-nav" class="flex items-center gap-4 text-sm">
-      <a href="/login" class="bg-rose-primary text-white px-4 py-1.5 rounded-full hover:bg-rose-dark transition-colors">登入</a>
+      <a href="/login" class="btn-primary px-8 py-3">登入</a>
     </div>
   </div>
 </header>
