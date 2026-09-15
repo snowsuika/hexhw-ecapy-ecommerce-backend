@@ -10,6 +10,7 @@
 
 | 檔案 | 說明 | 依賴 |
 |------|------|------|
+| `test/shipping.test.js` | Shipping 模組單元測試（直接 require `src/utils/shipping.js`，不經 API／DB） | 無 |
 | `tests/setup.js` | 輔助函式（getAdminToken、registerUser） | 無 |
 | `tests/auth.test.js` | 註冊、登入、個人資料 | 無 |
 | `tests/products.test.js` | 商品列表、詳情 | 需有商品資料（seed） |
@@ -36,7 +37,14 @@ auth → products → cart → orders → adminProducts → adminOrders
 
 ```bash
 npm test           # 執行全部測試（vitest run）
+npm run test:unit  # 同上：執行 test/ 與 tests/ 下所有測試（含 Shipping 單元測試）
 ```
+
+`vitest run` 使用 Vitest 預設 include（`**/*.{test,spec}.?(c|m)[jt]s?(x)`），因此 `test/` 與 `tests/` 兩個資料夾都會被執行。
+
+### Shipping 單元測試涵蓋情境
+
+宅配基本運費、超商取貨費用、小計 1,499、小計 1,500 免運、偏遠地區附加費、當日急件附加費、多項附加費同時成立、滿額免運與附加費同時成立；另含超商滿 1,500 不免運、非法配送方式與非法小計的防呆。
 
 Vitest 不支援 watch mode 與 `vitest.config.js` 中的 `sequence.files` 同時使用，請一律用 `vitest run`（即 `npm test`）。
 
@@ -89,3 +97,4 @@ describe('My Feature', () => {
 - **bcrypt 速度：** `NODE_ENV=test` 時 seed 使用 `saltRounds=1`，但測試中 `registerUser` 呼叫 `/api/auth/register` 走正常流程（saltRounds=10）。若測試跑很慢，可在測試 `.env` 中設定 `NODE_ENV=test`。
 - **DB 狀態殘留：** 測試結束後 DB 不會自動清除，下次執行 `npm test` 時資料仍在。若 auth 測試的 email 唯一性驗證失敗，通常是因為前次測試殘留資料（`registerUser` 的 email 含 `Date.now()` 應不重複，但 admin seed 固定）。
 - **訂單建立需 user_id 購物車：** 訪客（session_id）購物車的商品**不能**直接建立訂單，需先登入後重新加入。
+- **建立訂單必須帶 `shippingMethod`：** 缺少時回傳 400 VALIDATION_ERROR；測試中建單請帶 `shippingMethod: 'home_delivery'`。

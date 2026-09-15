@@ -38,6 +38,9 @@
 │   │   ├── adminMiddleware.js   # role === 'admin' 檢查
 │   │   ├── sessionMiddleware.js # X-Session-Id header 注入 req.sessionId
 │   │   └── errorHandler.js     # 全域錯誤處理（避免洩漏內部訊息）
+│   ├── utils/
+│   │   ├── ecpay.js             # 綠界 CheckMacValue、AIO 參數、QueryTradeInfo
+│   │   └── shipping.js          # 配送運費計算（純函式）
 │   └── routes/
 │       ├── authRoutes.js        # /api/auth
 │       ├── productRoutes.js     # /api/products
@@ -46,6 +49,8 @@
 │       ├── adminProductRoutes.js # /api/admin/products
 │       ├── adminOrderRoutes.js  # /api/admin/orders
 │       └── pageRoutes.js        # EJS 頁面路由
+├── test/
+│   └── shipping.test.js    # Shipping 模組單元測試（不經 API／DB）
 └── tests/
     ├── setup.js            # 測試輔助函式（getAdminToken、registerUser）
     ├── auth.test.js
@@ -79,7 +84,8 @@
 | `POST /api/cart` | cartRoutes.js | JWT 或 Session | 加入購物車 |
 | `PATCH /api/cart/:itemId` | cartRoutes.js | JWT 或 Session | 修改數量 |
 | `DELETE /api/cart/:itemId` | cartRoutes.js | JWT 或 Session | 移除品項 |
-| `POST /api/orders` | orderRoutes.js | JWT | 建立訂單 |
+| `POST /api/orders` | orderRoutes.js | JWT | 建立訂單（含運費計算） |
+| `GET /api/orders/shipping-quote` | orderRoutes.js | JWT | 依購物車試算運費與總額 |
 | `GET /api/orders` | orderRoutes.js | JWT | 我的訂單列表 |
 | `GET /api/orders/:id` | orderRoutes.js | JWT | 訂單詳情 |
 | `PATCH /api/orders/:id/pay` | orderRoutes.js | JWT | 模擬付款 |
@@ -203,7 +209,13 @@
 | recipient_name | TEXT | NOT NULL | 收件人姓名 |
 | recipient_email | TEXT | NOT NULL | 收件人 Email |
 | recipient_address | TEXT | NOT NULL | 收件地址 |
-| total_amount | INTEGER | NOT NULL | 訂單總金額（新台幣整數） |
+| shipping_method | TEXT | CHECK IN ('home_delivery','convenience_store') | 配送方式（舊訂單為 NULL） |
+| is_remote_area | INTEGER | NOT NULL, DEFAULT 0 | 偏遠地區（0/1，API 回傳布林） |
+| is_express | INTEGER | NOT NULL, DEFAULT 0 | 當日急件（0/1，API 回傳布林） |
+| subtotal_amount | INTEGER | | 商品小計（舊訂單 migration 時補為 total_amount） |
+| shipping_fee | INTEGER | NOT NULL, DEFAULT 0 | 運費 |
+| total_amount | INTEGER | NOT NULL | 訂單總金額 = subtotal_amount + shipping_fee（新台幣整數） |
+| ecpay_trade_no | TEXT | | 綠界交易編號 |
 | status | TEXT | NOT NULL, DEFAULT 'pending', CHECK IN ('pending','paid','failed') | 狀態 |
 | created_at | TEXT | DEFAULT datetime('now') | 建立時間 |
 

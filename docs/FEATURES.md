@@ -13,6 +13,7 @@
 | EJS 前台頁面 | ✅ 完成 |
 | EJS 後台頁面 | ✅ 完成 |
 | ECPay 金流整合 | ✅ 完成 |
+| 配送運費（Shipping） | ✅ 完成 |
 
 ---
 
@@ -94,16 +95,29 @@
 
 ### 建立訂單 `POST /api/orders`
 
-- **必填：** `recipientName`、`recipientEmail`（合法格式）、`recipientAddress`
+- **必填：** `recipientName`、`recipientEmail`（合法格式）、`recipientAddress`、`shippingMethod`（`home_delivery` 或 `convenience_store`）
+- **選填：** `isRemoteArea`、`isExpress`（布林值，預設 `false`；非布林值回傳 400）
+- 配送資訊不合法回傳 400 VALIDATION_ERROR
 - **前置條件：** 登入用戶的購物車（`user_id` 綁定）不能為空
+- **金額計算（一律由後端重算，不信任前端金額）：**
+  - `subtotal_amount` = Σ（商品價格 × 數量）
+  - `shipping_fee` = `calculateShipping()` 的結果，規則見下方「配送運費」
+  - `total_amount` = `subtotal_amount` + `shipping_fee`（綠界付款金額即此值）
 - **原子操作（db.transaction）：**
-  1. 建立 `orders` 記錄，計算 `total_amount`
+  1. 建立 `orders` 記錄，寫入配送資訊、`subtotal_amount`、`shipping_fee`、`total_amount`
   2. 將購物車所有品項複製為 `order_items`（包含價格快照）
   3. 每件商品扣除對應庫存（`stock - quantity`）
   4. 清空該用戶的購物車（`DELETE FROM cart_items WHERE user_id = ?`）
 - 訂單初始狀態為 `pending`
 - 訂單編號格式：`ORD-YYYYMMDD-XXXXX`（XXXXX 為 UUID 前 5 碼大寫）
-- 成功回傳 201，含訂單完整資訊
+- 成功回傳 201，含訂單完整資訊（含 `subtotal_amount`、`shipping_method`、`is_remote_area`、`is_express`、`shipping_fee`）
+
+### 運費試算 `GET /api/orders/shipping-quote`
+
+- **查詢參數：** `shippingMethod`（必填）、`isRemoteArea`、`isExpress`（字串 `true` / `false`，預設 `false`）
+- 商品小計由後端依登入者購物車計算，回傳 `{ subtotal_amount, base_fee, remote_area_fee, express_fee, shipping_fee, free_shipping_applied, total_amount }`
+- 僅供結帳頁顯示；建立訂單時會重新計算
+- 路由宣告在 `GET /:id` 之前，避免 `shipping-quote` 被當成訂單 id
 
 ### 訂單列表 `GET /api/orders`
 
@@ -120,6 +134,55 @@
 - `success` → 狀態改為 `paid`
 - `fail` → 狀態改為 `failed`
 - 不會回滾庫存（即付款失敗後庫存不會還原）
+
+---
+
+## 配送運費（Shipping）
+
+**模組：** `src/utils/shipping.js`（純函式，不依賴 Express 與 SQLite，可獨立單元測試）
+
+### 費率規則
+
+| 配送條件 | 費用 |
+|----------|------|
+| 宅配基本運費（`home_delivery`） | 120 元 |
+| 超商取貨（`convenience_store`） | 60 元 |
+| 商品小計滿 1,500 元 | 免宅配基本運費 |
+| 偏遠地區（`isRemoteArea`） | 加收 200 元 |
+| 當日急件（`isExpress`） | 加收 250 元 |
+
+- **滿額免運只免「宅配基本運費」**：超商取貨費不是基本運費，滿 1,500 仍收 60 元
+- 偏遠地區與當日急件附加費**不受滿額免運影響**，可同時成立
+- 門檻判斷為 `subtotal >= 1500`（1,499 收費、1,500 免運）
+
+### 計算範例
+
+| 商品小計 | 配送方式 | 偏遠 | 急件 | 運費 |
+|----------|----------|------|------|------|
+| 1,000 | 宅配 | | | 120 |
+| 1,000 | 超商 | | | 60 |
+| 1,499 | 宅配 | | | 120 |
+| 1,500 | 宅配 | | | 0 |
+| 1,000 | 宅配 | ✓ | | 320 |
+| 1,000 | 宅配 | | ✓ | 370 |
+| 1,000 | 宅配 | ✓ | ✓ | 570 |
+| 1,500 | 宅配 | ✓ | ✓ | 450 |
+| 1,500 | 超商 | | | 60 |
+
+### 匯出函式
+
+| 函式 | 說明 |
+|------|------|
+| `calculateShipping({ subtotal, shippingMethod, isRemoteArea, isExpress })` | 回傳 `{ base_fee, remote_area_fee, express_fee, shipping_fee, free_shipping_applied }`；輸入不合法時 throw |
+| `validateShippingInput({ shippingMethod, isRemoteArea, isExpress })` | 回傳錯誤訊息字串或 `null`，供路由回傳 400 |
+| `formatOrderShipping(order)` | 將 DB 的 `is_remote_area` / `is_express`（0/1）轉為布林值 |
+
+### 前端
+
+- 結帳頁（`/checkout`）選擇配送方式、偏遠地區、當日急件，變更時呼叫 `shipping-quote` 顯示運費明細與總計
+- 購物車頁（`/cart`）僅顯示距離 1,500 宅配免運門檻的差額，運費於結帳時計算
+- 訂單詳情頁與後台訂單詳情顯示商品小計、配送方式與運費
+- 舊訂單（功能上線前建立）`shipping_method` 為 `null`、`shipping_fee` 為 0、`subtotal_amount` 等於 `total_amount`
 
 ---
 

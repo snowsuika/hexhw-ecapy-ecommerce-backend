@@ -45,6 +45,7 @@ Server 預設在 `http://localhost:3001` 啟動。
 | `npm run css:build` | 建置並 minify CSS |
 | `npm run openapi` | 產生 `openapi.json`（swagger-jsdoc） |
 | `npm test` | 執行所有測試（循序） |
+| `npm run test:unit` | 執行所有測試，含 `test/shipping.test.js` 運費單元測試 |
 
 ## 文件索引
 

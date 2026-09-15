@@ -13,6 +13,7 @@ npm run dev:css    # Tailwind watch mode（另開 terminal）
 npm run css:build  # 建置並 minify CSS
 npm run openapi    # 產生 OpenAPI spec（swagger-jsdoc）
 npm test           # 執行所有測試（vitest run，循序執行）
+npm run test:unit  # 同 vitest run，含 test/shipping.test.js 運費單元測試
 ```
 
 ## 關鍵規則
