@@ -3,7 +3,8 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 
-const dbPath = path.join(__dirname, '..', 'database.sqlite');
+// DB_PATH lets tests use an isolated database (e.g. ':memory:'); defaults to the project database
+const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'database.sqlite');
 const db = new Database(dbPath);
 
 // Enable WAL mode for better performance
