@@ -8,7 +8,9 @@
 ├── server.js               # 進入點，監聽 PORT，啟動前驗證 JWT_SECRET
 ├── generate-openapi.js     # 產生 openapi.json 的腳本
 ├── swagger-config.js       # swagger-jsdoc 設定
-├── vitest.config.js        # 測試循序執行設定
+├── vitest.config.js        # Unit 測試設定（記憶體 DB）
+├── vitest.integration.config.js # Integration 測試設定（記憶體 DB）
+├── playwright.config.js    # E2E 測試設定（使用已啟動的 server）
 ├── public/
 │   ├── css/
 │   │   ├── input.css       # Tailwind 來源
@@ -49,6 +51,11 @@
 │       ├── adminProductRoutes.js # /api/admin/products
 │       ├── adminOrderRoutes.js  # /api/admin/orders
 │       └── pageRoutes.js        # EJS 頁面路由
+├── scripts/
+│   └── generate-postman.js # openapi.json → Postman Collection（輸出至 postman/，git ignored）
+├── e2e/
+│   ├── fixtures.js         # 瀏覽器來源（E2E_CDP_URL attach 或 Playwright Chromium）
+│   └── checkout-payment.spec.js # 結帳 + 綠界網路 ATM 付款 E2E
 ├── test/
 │   └── shipping.test.js    # Shipping 模組單元測試（不經 API／DB）
 └── tests/
@@ -58,7 +65,9 @@
     ├── cart.test.js
     ├── orders.test.js
     ├── adminProducts.test.js
-    └── adminOrders.test.js
+    ├── adminOrders.test.js
+    └── integration/
+        └── order-flow.test.js # 建單流程整合測試（DB 寫入、庫存、rollback）
 ```
 
 ## 啟動流程

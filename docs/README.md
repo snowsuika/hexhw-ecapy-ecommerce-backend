@@ -44,8 +44,11 @@ Server 預設在 `http://localhost:3001` 啟動。
 | `npm run dev:css` | 開發用：Tailwind watch mode |
 | `npm run css:build` | 建置並 minify CSS |
 | `npm run openapi` | 產生 `openapi.json`（swagger-jsdoc） |
-| `npm test` | 執行所有測試（循序） |
-| `npm run test:unit` | 執行所有測試，含 `test/shipping.test.js` 運費單元測試 |
+| `npm test` | 依序執行 unit 與 integration 測試 |
+| `npm run test:unit` | Unit 測試（含運費單元測試與原有 API 測試，記憶體 DB） |
+| `npm run test:integration` | Integration 測試（建單流程、庫存、rollback，記憶體 DB） |
+| `npm run test:e2e` | Playwright E2E（需先 `npm start`，詳見 TESTING.md） |
+| `npm run postman` | 產生 `openapi.json` 並轉換為 Postman Collection（`postman/`） |
 
 ## 文件索引
 

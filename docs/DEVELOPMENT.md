@@ -47,6 +47,9 @@
 | `ADMIN_PASSWORD` | Seed admin 帳號密碼 | 否 | `12345678` |
 | `FRONTEND_URL` | CORS 允許來源 | 否 | `http://localhost:3001` |
 | `NODE_ENV` | 環境識別 | 否 | 無（`test` 時 bcrypt saltRounds=1） |
+| `DB_PATH` | SQLite 檔案路徑 | 否 | 專案根目錄 `database.sqlite`（vitest 設定為 `:memory:`） |
+| `E2E_CDP_URL` | E2E attach 既有 Chrome 的 CDP 位址 | 否 | 無（未設定時由 Playwright 啟動 Chromium） |
+| `E2E_BASE_URL` | E2E 測試目標網址 | 否 | `http://localhost:3001` |
 
 ## JSDoc 格式（OpenAPI）
 
