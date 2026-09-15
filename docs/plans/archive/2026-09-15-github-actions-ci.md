@@ -62,6 +62,13 @@
 
 - E2E 進 CI、測試覆蓋率報告、Node 版本矩陣
 
+### 實作與原計畫差異
+
+- workflow 內容與上方規格一致，無實作差異
+- 首次執行（push 觸發）結果為 `success`；runner 實際使用 Node.js v24.20.0，`npm ci` 在 Linux 上成功安裝原生模組，Unit Test 7 檔 46 條、Integration Test 1 檔 5 條全數通過，與本機結果一致
+- `Post Checkout` 清理步驟出現 warning：`fatal: No url found for submodule path '.claude/skills/ecpay' in .gitmodules`。原因是 repo 中既有的 `.claude/skills/ecpay` 為 gitlink（mode `160000`）且無 `.gitmodules`，與本 workflow 無關，不影響測試步驟與執行結果；已另以 `chore: 移除無效的 .claude/skills/ecpay submodule 紀錄` 移除該 gitlink
+- `npm ci` 輸出數個相依套件的 `npm warn deprecated`（如 `prebuild-install`、`glob@7`、`uuid@8`），為間接相依的棄用提示，不影響安裝與測試
+
 ## Tasks
 
 - [x] **建立計畫文件（開發前）**：將本計畫存為 `docs/plans/2026-09-15-github-actions-ci.md`
@@ -72,6 +79,6 @@
 - [x] **文件**：更新 `docs/TESTING.md`、`docs/ARCHITECTURE.md`、`docs/DEVELOPMENT.md`、`docs/CHANGELOG.md`
 - [x] **FEATURES.md**：不適用（CI 非產品功能），不修改
 - [x] **commit**：`chore: 新增 GitHub Actions 自動化測試 workflow`（`.github/`）、`docs: 補充 GitHub Actions 說明`（文件）
-- [ ] **push**：push `main`
-- [ ] **驗證－GitHub Actions**：`gh run list --workflow test.yml`、`gh run watch` 確認 conclusion 為 `success`，`Unit Test`、`Integration Test` 兩步皆成功；失敗時以 `gh run view --log-failed` 分析
-- [ ] **歸檔（完成後）**：勾選 Tasks、補「實作與原計畫差異」，將計畫移至 `docs/plans/archive/`，並另以 `docs:` commit 提交
+- [x] **push**：push `main`
+- [x] **驗證－GitHub Actions**：`gh run list --workflow test.yml`、`gh run watch` 確認 conclusion 為 `success`，`Checkout`、`Setup Node.js`、`Install dependencies`、`Unit Test`、`Integration Test` 各步驟皆 `success`；log 中 Unit Test `Tests 46 passed`、Integration Test `Tests 5 passed`
+- [x] **歸檔（完成後）**：勾選 Tasks、補「實作與原計畫差異」，將計畫移至 `docs/plans/archive/`，並另以 `docs:` commit 提交
