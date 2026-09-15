@@ -4,6 +4,9 @@
 
 ```
 .
+├── .github/
+│   └── workflows/
+│       └── test.yml        # GitHub Actions：push／PR 到 main 時執行 unit 與 integration 測試
 ├── app.js                  # Express app 設定（middleware、路由掛載）
 ├── server.js               # 進入點，監聽 PORT，啟動前驗證 JWT_SECRET
 ├── generate-openapi.js     # 產生 openapi.json 的腳本

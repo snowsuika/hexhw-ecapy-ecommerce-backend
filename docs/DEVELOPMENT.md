@@ -41,7 +41,7 @@
 
 | 變數 | 用途 | 必要 | 預設值 |
 |------|------|------|------|
-| `JWT_SECRET` | JWT 簽名密鑰 | **必填** | 無（缺少時 server 拒絕啟動） |
+| `JWT_SECRET` | JWT 簽名密鑰 | **必填** | 無（缺少時 server 拒絕啟動）；GitHub Actions 由 workflow 提供測試用假值 |
 | `PORT` | Server 監聽 port | 否 | `3001` |
 | `ADMIN_EMAIL` | Seed admin 帳號 email | 否 | `admin@hexschool.com` |
 | `ADMIN_PASSWORD` | Seed admin 帳號密碼 | 否 | `12345678` |

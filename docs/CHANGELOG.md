@@ -13,6 +13,7 @@
 - `e2e/checkout-payment.spec.js`：Playwright E2E，走完結帳與綠界網路 ATM（台灣土地銀行）付款並驗證 `paid`；`npm run test:e2e` 指令
 - `scripts/generate-postman.js`：由 `openapi.json` 產生 Postman Collection（`{{baseUrl}}`、`token`、`sessionId` 變數、登入自動存 JWT）；`npm run postman` 指令
 - 環境變數 `DB_PATH`（SQLite 路徑）、`E2E_CDP_URL`（E2E attach 既有 Chrome）、`E2E_BASE_URL`
+- `.github/workflows/test.yml`：GitHub Actions 於 push／PR 到 `main` 或手動觸發時，依序執行 `npm run test:unit` 與 `npm run test:integration`（Node.js 24）
 
 ### Changed
 

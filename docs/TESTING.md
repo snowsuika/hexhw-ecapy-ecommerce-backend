@@ -89,6 +89,22 @@ npm run postman           # 重新產生 openapi.json 並轉換為 Postman Colle
 - 登入／註冊成功後自動把 JWT 存入 `{{token}}`；需要登入的 API 繼承 collection 層級的 Bearer `{{token}}`
 - 購物車請求附有停用中的 `X-Session-Id: {{sessionId}}` header，訪客模式時啟用
 
+### GitHub Actions
+
+Workflow：`.github/workflows/test.yml`
+
+| 項目 | 設定 |
+|------|------|
+| 觸發條件 | push 到 `main`、對 `main` 開 Pull Request、在 Actions 頁手動執行（`workflow_dispatch`） |
+| 執行環境 | `ubuntu-latest`、Node.js 24（`actions/setup-node` 快取 npm）、逾時 10 分鐘 |
+| 步驟 | `npm ci` → **Unit Test**（`npm run test:unit`）→ **Integration Test**（`npm run test:integration`） |
+| 重複執行 | `concurrency` 以分支為群組，同一分支有新的 push 時取消尚未完成的舊執行 |
+| 權限 | `contents: read` |
+
+- **`JWT_SECRET`**：CI 沒有 `.env`，由 workflow 的 `env` 提供測試用假值 `test-only-not-a-real-secret`。它只用來在記憶體資料庫中簽發短暫 token，不是正式金鑰；程式仍透過 `process.env.JWT_SECRET` 讀取。正式環境的金鑰不可寫入 workflow。
+- **不在 CI 執行 E2E**：E2E 需要已啟動的 server、瀏覽器與綠界 staging 外部服務，且會寫入真實資料庫；CI 只跑不依賴外部服務的 unit 與 integration 測試。
+- 任一步驟失敗時 workflow 即失敗，可在 Actions 頁點開該步驟查看 log。
+
 ### Shipping 單元測試涵蓋情境
 
 宅配基本運費、超商取貨費用、小計 1,499、小計 1,500 免運、偏遠地區附加費、當日急件附加費、多項附加費同時成立、滿額免運與附加費同時成立；另含超商滿 1,500 不免運、非法配送方式與非法小計的防呆。
