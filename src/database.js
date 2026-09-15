@@ -82,6 +82,25 @@ function migrateOrders() {
   if (!cols.includes('ecpay_trade_no')) {
     db.exec('ALTER TABLE orders ADD COLUMN ecpay_trade_no TEXT');
   }
+
+  // Shipping fee columns
+  if (!cols.includes('shipping_method')) {
+    db.exec("ALTER TABLE orders ADD COLUMN shipping_method TEXT CHECK(shipping_method IN ('home_delivery', 'convenience_store'))");
+  }
+  if (!cols.includes('is_remote_area')) {
+    db.exec('ALTER TABLE orders ADD COLUMN is_remote_area INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!cols.includes('is_express')) {
+    db.exec('ALTER TABLE orders ADD COLUMN is_express INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!cols.includes('shipping_fee')) {
+    db.exec('ALTER TABLE orders ADD COLUMN shipping_fee INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!cols.includes('subtotal_amount')) {
+    db.exec('ALTER TABLE orders ADD COLUMN subtotal_amount INTEGER');
+    // Orders created before shipping fees existed: subtotal equals total
+    db.exec('UPDATE orders SET subtotal_amount = total_amount WHERE subtotal_amount IS NULL');
+  }
 }
 
 function migrateProductImages() {

@@ -18,11 +18,11 @@
       <div class="flex flex-col lg:flex-row gap-12">
         <!-- Left: Items -->
         <div class="flex-1 flex flex-col gap-8">
-          <div v-if="total < 500" class="card-elevated px-6 py-3.5 text-sm text-accent-gold-light text-center tracking-wide">
-            再買 NT$ {{ (500 - total).toLocaleString() }} 即可享免運費！
+          <div v-if="total < 1500" class="card-elevated px-6 py-3.5 text-sm text-accent-gold-light text-center tracking-wide">
+            再買 NT$ {{ (1500 - total).toLocaleString() }} 即可享宅配免運費！
           </div>
           <div v-else class="card-elevated px-6 py-3.5 text-sm text-accent-gold-light text-center tracking-wide">
-            ✓ 已達免運門檻！
+            ✓ 已達宅配免運門檻！（偏遠地區、當日急件另計）
           </div>
 
           <div class="border border-border-gold">
@@ -75,13 +75,13 @@
             </div>
             <div class="flex justify-between text-sm">
               <span class="text-text-secondary">運費</span>
-              <span class="text-text-primary">{{ total >= 500 ? '免運' : 'NT$ 150' }}</span>
+              <span class="text-text-muted">結帳時依配送方式計算</span>
             </div>
             <div class="h-px bg-border-gold"></div>
             <div class="flex justify-between items-center">
-              <span class="text-text-primary font-bold">總計</span>
+              <span class="text-text-primary font-bold">總計（未含運費）</span>
               <span class="text-accent-rose-light text-xl font-bold">
-                NT$ {{ (total + (total >= 500 ? 0 : 150)).toLocaleString() }}
+                NT$ {{ total.toLocaleString() }}
               </span>
             </div>
             <button @click="goCheckout" class="btn-primary w-full">前往結帳</button>

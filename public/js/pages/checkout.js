@@ -1,4 +1,4 @@
-const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, watch, onMounted } = Vue;
 
 createApp({
   setup() {
@@ -7,14 +7,71 @@ createApp({
     const loading = ref(true);
     const submitting = ref(false);
     const cartItems = ref([]);
-    const form = ref({ recipientName: '', recipientEmail: '', recipientAddress: '' });
+    const form = ref({
+      recipientName: '',
+      recipientEmail: '',
+      recipientAddress: '',
+      shippingMethod: '',
+      isRemoteArea: false,
+      isExpress: false
+    });
     const errors = ref({});
+    const quote = ref(null);
+    const quoteLoading = ref(false);
+    let quoteRequestId = 0;
+
+    const shippingOptions = [
+      { value: 'home_delivery', label: '宅配', hint: 'NT$ 120' },
+      { value: 'convenience_store', label: '超商取貨', hint: 'NT$ 60' }
+    ];
 
     const cartTotal = computed(function () {
       return cartItems.value.reduce(function (sum, item) {
         return sum + item.product.price * item.quantity;
       }, 0);
     });
+
+    // Shipping is always calculated by the backend; the page only displays the quote
+    const summarySubtotal = computed(function () {
+      return quote.value ? quote.value.subtotal_amount : cartTotal.value;
+    });
+
+    const summaryTotal = computed(function () {
+      return quote.value ? quote.value.total_amount : cartTotal.value;
+    });
+
+    async function fetchQuote() {
+      if (!form.value.shippingMethod) {
+        quote.value = null;
+        return;
+      }
+      const requestId = ++quoteRequestId;
+      quoteLoading.value = true;
+      const params = new URLSearchParams({
+        shippingMethod: form.value.shippingMethod,
+        isRemoteArea: String(form.value.isRemoteArea),
+        isExpress: String(form.value.isExpress)
+      });
+      try {
+        const res = await apiFetch('/api/orders/shipping-quote?' + params.toString());
+        // Ignore responses from outdated option changes
+        if (requestId === quoteRequestId) quote.value = res.data;
+      } catch (err) {
+        if (requestId === quoteRequestId) {
+          quote.value = null;
+          Notification.show(err?.data?.message || '運費試算失敗', 'error');
+        }
+      } finally {
+        if (requestId === quoteRequestId) quoteLoading.value = false;
+      }
+    }
+
+    watch(
+      function () {
+        return [form.value.shippingMethod, form.value.isRemoteArea, form.value.isExpress];
+      },
+      fetchQuote
+    );
 
     function validate() {
       errors.value = {};
@@ -25,6 +82,7 @@ createApp({
         errors.value.recipientEmail = 'Email 格式不正確';
       }
       if (!form.value.recipientAddress.trim()) errors.value.recipientAddress = '請輸入收件地址';
+      if (!form.value.shippingMethod) errors.value.shippingMethod = '請選擇配送方式';
       return Object.keys(errors.value).length === 0;
     }
 
@@ -60,6 +118,9 @@ createApp({
       loading.value = false;
     });
 
-    return { loading, submitting, cartItems, form, errors, cartTotal, submitOrder };
+    return {
+      loading, submitting, cartItems, form, errors, cartTotal,
+      shippingOptions, quote, quoteLoading, summarySubtotal, summaryTotal, submitOrder
+    };
   }
 }).mount('#app');

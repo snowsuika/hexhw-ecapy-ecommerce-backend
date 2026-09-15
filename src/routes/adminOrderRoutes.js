@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../database');
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
+const { formatOrderShipping } = require('../utils/shipping');
 
 const router = express.Router();
 
@@ -57,6 +58,18 @@ router.use(authMiddleware, adminMiddleware);
  *                             type: string
  *                           recipient_email:
  *                             type: string
+ *                           subtotal_amount:
+ *                             type: integer
+ *                           shipping_method:
+ *                             type: string
+ *                             nullable: true
+ *                             enum: [home_delivery, convenience_store]
+ *                           is_remote_area:
+ *                             type: boolean
+ *                           is_express:
+ *                             type: boolean
+ *                           shipping_fee:
+ *                             type: integer
  *                           total_amount:
  *                             type: integer
  *                           status:
@@ -99,7 +112,7 @@ router.get('/', (req, res) => {
   querySql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
 
   const total = db.prepare(countSql).get(...params).count;
-  const orders = db.prepare(querySql).all(...params, limit, offset);
+  const orders = db.prepare(querySql).all(...params, limit, offset).map(formatOrderShipping);
 
   res.json({
     data: {
@@ -153,6 +166,18 @@ router.get('/', (req, res) => {
  *                       type: string
  *                     recipient_address:
  *                       type: string
+ *                     subtotal_amount:
+ *                       type: integer
+ *                     shipping_method:
+ *                       type: string
+ *                       nullable: true
+ *                       enum: [home_delivery, convenience_store]
+ *                     is_remote_area:
+ *                       type: boolean
+ *                     is_express:
+ *                       type: boolean
+ *                     shipping_fee:
+ *                       type: integer
  *                     total_amount:
  *                       type: integer
  *                     status:
@@ -202,7 +227,7 @@ router.get('/:id', (req, res) => {
 
   res.json({
     data: {
-      ...order,
+      ...formatOrderShipping(order),
       items,
       user: user || null
     },

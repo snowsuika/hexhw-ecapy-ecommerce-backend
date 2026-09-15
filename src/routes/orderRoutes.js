@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const authMiddleware = require('../middleware/authMiddleware');
 const { buildAioParams, getMerchantTradeNo, queryTradeInfo } = require('../utils/ecpay');
+const { calculateShipping, validateShippingInput, formatOrderShipping } = require('../utils/shipping');
 
 const router = express.Router();
 
@@ -34,7 +35,7 @@ function generateOrderNo() {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [recipientName, recipientEmail, recipientAddress]
+ *             required: [recipientName, recipientEmail, recipientAddress, shippingMethod]
  *             properties:
  *               recipientName:
  *                 type: string
@@ -43,6 +44,18 @@ function generateOrderNo() {
  *                 format: email
  *               recipientAddress:
  *                 type: string
+ *               shippingMethod:
+ *                 type: string
+ *                 enum: [home_delivery, convenience_store]
+ *                 description: 宅配 120 元（商品小計滿 1,500 免）；超商取貨 60 元（不適用滿額免運）
+ *               isRemoteArea:
+ *                 type: boolean
+ *                 default: false
+ *                 description: 偏遠地區，加收 200 元
+ *               isExpress:
+ *                 type: boolean
+ *                 default: false
+ *                 description: 當日急件，加收 250 元
  *     responses:
  *       201:
  *         description: 訂單建立成功
@@ -58,8 +71,22 @@ function generateOrderNo() {
  *                       type: string
  *                     order_no:
  *                       type: string
+ *                     subtotal_amount:
+ *                       type: integer
+ *                       description: 商品小計
+ *                     shipping_method:
+ *                       type: string
+ *                       enum: [home_delivery, convenience_store]
+ *                     is_remote_area:
+ *                       type: boolean
+ *                     is_express:
+ *                       type: boolean
+ *                     shipping_fee:
+ *                       type: integer
+ *                       description: 運費（基本運費 + 附加費）
  *                     total_amount:
  *                       type: integer
+ *                       description: 商品小計 + 運費
  *                     status:
  *                       type: string
  *                     items:
@@ -81,10 +108,17 @@ function generateOrderNo() {
  *                 message:
  *                   type: string
  *       400:
- *         description: 購物車為空或庫存不足或收件資訊缺失
+ *         description: 購物車為空、庫存不足、收件資訊缺失或配送資訊不合法
  */
 router.post('/', (req, res) => {
-  const { recipientName, recipientEmail, recipientAddress } = req.body;
+  const {
+    recipientName,
+    recipientEmail,
+    recipientAddress,
+    shippingMethod,
+    isRemoteArea = false,
+    isExpress = false
+  } = req.body;
   const userId = req.user.userId;
 
   if (!recipientName || !recipientEmail || !recipientAddress) {
@@ -101,6 +135,15 @@ router.post('/', (req, res) => {
       data: null,
       error: 'VALIDATION_ERROR',
       message: 'Email 格式不正確'
+    });
+  }
+
+  const shippingError = validateShippingInput({ shippingMethod, isRemoteArea, isExpress });
+  if (shippingError) {
+    return res.status(400).json({
+      data: null,
+      error: 'VALIDATION_ERROR',
+      message: shippingError
     });
   }
 
@@ -132,10 +175,12 @@ router.post('/', (req, res) => {
     });
   }
 
-  // Calculate total
-  const totalAmount = cartItems.reduce(
+  // Calculate subtotal, shipping fee and total
+  const subtotalAmount = cartItems.reduce(
     (sum, item) => sum + item.product_price * item.quantity, 0
   );
+  const shipping = calculateShipping({ subtotal: subtotalAmount, shippingMethod, isRemoteArea, isExpress });
+  const totalAmount = subtotalAmount + shipping.shipping_fee;
 
   const orderId = uuidv4();
   const orderNo = generateOrderNo();
@@ -143,9 +188,13 @@ router.post('/', (req, res) => {
   // Transaction: create order, order items, deduct stock, clear cart
   const createOrder = db.transaction(() => {
     db.prepare(
-      `INSERT INTO orders (id, order_no, user_id, recipient_name, recipient_email, recipient_address, total_amount)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(orderId, orderNo, userId, recipientName, recipientEmail, recipientAddress, totalAmount);
+      `INSERT INTO orders (id, order_no, user_id, recipient_name, recipient_email, recipient_address,
+                           shipping_method, is_remote_area, is_express, subtotal_amount, shipping_fee, total_amount)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      orderId, orderNo, userId, recipientName, recipientEmail, recipientAddress,
+      shippingMethod, isRemoteArea ? 1 : 0, isExpress ? 1 : 0, subtotalAmount, shipping.shipping_fee, totalAmount
+    );
 
     const insertItem = db.prepare(
       `INSERT INTO order_items (id, order_id, product_id, product_name, product_price, quantity)
@@ -173,6 +222,11 @@ router.post('/', (req, res) => {
     data: {
       id: order.id,
       order_no: order.order_no,
+      subtotal_amount: order.subtotal_amount,
+      shipping_method: order.shipping_method,
+      is_remote_area: Boolean(order.is_remote_area),
+      is_express: Boolean(order.is_express),
+      shipping_fee: order.shipping_fee,
       total_amount: order.total_amount,
       status: order.status,
       items: orderItems,
@@ -237,6 +291,116 @@ router.get('/', (req, res) => {
 
 /**
  * @openapi
+ * /api/orders/shipping-quote:
+ *   get:
+ *     summary: 依目前購物車試算運費與訂單總額
+ *     description: 商品小計由後端依登入者購物車計算；實際建立訂單時會重新計算，不信任前端金額。
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: shippingMethod
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [home_delivery, convenience_store]
+ *       - in: query
+ *         name: isRemoteArea
+ *         schema:
+ *           type: string
+ *           enum: ['true', 'false']
+ *           default: 'false'
+ *       - in: query
+ *         name: isExpress
+ *         schema:
+ *           type: string
+ *           enum: ['true', 'false']
+ *           default: 'false'
+ *     responses:
+ *       200:
+ *         description: 試算成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     subtotal_amount:
+ *                       type: integer
+ *                     base_fee:
+ *                       type: integer
+ *                     remote_area_fee:
+ *                       type: integer
+ *                     express_fee:
+ *                       type: integer
+ *                     shipping_fee:
+ *                       type: integer
+ *                     free_shipping_applied:
+ *                       type: boolean
+ *                     total_amount:
+ *                       type: integer
+ *                 error:
+ *                   type: string
+ *                   nullable: true
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: 配送資訊不合法
+ */
+router.get('/shipping-quote', (req, res) => {
+  const { shippingMethod } = req.query;
+
+  // Query strings are text; only accept explicit 'true' / 'false'
+  const flags = {};
+  for (const key of ['isRemoteArea', 'isExpress']) {
+    const value = req.query[key];
+    if (value === undefined || value === 'false') {
+      flags[key] = false;
+    } else if (value === 'true') {
+      flags[key] = true;
+    } else {
+      return res.status(400).json({
+        data: null,
+        error: 'VALIDATION_ERROR',
+        message: `${key} 必須為 true 或 false`
+      });
+    }
+  }
+
+  const shippingError = validateShippingInput({ shippingMethod, ...flags });
+  if (shippingError) {
+    return res.status(400).json({
+      data: null,
+      error: 'VALIDATION_ERROR',
+      message: shippingError
+    });
+  }
+
+  const { subtotal } = db.prepare(
+    `SELECT COALESCE(SUM(p.price * ci.quantity), 0) AS subtotal
+     FROM cart_items ci
+     JOIN products p ON ci.product_id = p.id
+     WHERE ci.user_id = ?`
+  ).get(req.user.userId);
+
+  const shipping = calculateShipping({ subtotal, shippingMethod, ...flags });
+
+  res.json({
+    data: {
+      subtotal_amount: subtotal,
+      ...shipping,
+      total_amount: subtotal + shipping.shipping_fee
+    },
+    error: null,
+    message: '成功'
+  });
+});
+
+/**
+ * @openapi
  * /api/orders/{id}:
  *   get:
  *     summary: 訂單詳情
@@ -270,6 +434,18 @@ router.get('/', (req, res) => {
  *                       type: string
  *                     recipient_address:
  *                       type: string
+ *                     subtotal_amount:
+ *                       type: integer
+ *                     shipping_method:
+ *                       type: string
+ *                       nullable: true
+ *                       enum: [home_delivery, convenience_store]
+ *                     is_remote_area:
+ *                       type: boolean
+ *                     is_express:
+ *                       type: boolean
+ *                     shipping_fee:
+ *                       type: integer
  *                     total_amount:
  *                       type: integer
  *                     status:
@@ -309,7 +485,7 @@ router.get('/:id', (req, res) => {
   const items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(order.id);
 
   res.json({
-    data: { ...order, items },
+    data: { ...formatOrderShipping(order), items },
     error: null,
     message: '成功'
   });
@@ -355,6 +531,18 @@ router.get('/:id', (req, res) => {
  *                       type: string
  *                     order_no:
  *                       type: string
+ *                     subtotal_amount:
+ *                       type: integer
+ *                     shipping_method:
+ *                       type: string
+ *                       nullable: true
+ *                       enum: [home_delivery, convenience_store]
+ *                     is_remote_area:
+ *                       type: boolean
+ *                     is_express:
+ *                       type: boolean
+ *                     shipping_fee:
+ *                       type: integer
  *                     total_amount:
  *                       type: integer
  *                     status:
@@ -415,7 +603,7 @@ router.patch('/:id/pay', (req, res) => {
   const items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(order.id);
 
   res.json({
-    data: { ...updated, items },
+    data: { ...formatOrderShipping(updated), items },
     error: null,
     message: action === 'success' ? '付款成功' : '付款失敗'
   });
