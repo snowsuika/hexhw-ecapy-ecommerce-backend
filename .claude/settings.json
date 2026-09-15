@@ -3,7 +3,6 @@
     "allow": [
       "Edit(~/.npm/**)",
       "Read(~/.npm/**)",
-      "Write(~/Library/pnpm/**)",
       "Edit(~/Library/pnpm/**)",
       "Read(~/Library/pnpm/**)"
     ],
