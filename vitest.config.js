@@ -8,17 +8,6 @@ export default defineConfig({
     // Each test file gets its own in-memory SQLite, never touching database.sqlite
     env: { DB_PATH: ':memory:' },
     fileParallelism: false,
-    sequence: {
-      files: [
-        'test/shipping.test.js',
-        'tests/auth.test.js',
-        'tests/products.test.js',
-        'tests/cart.test.js',
-        'tests/orders.test.js',
-        'tests/adminProducts.test.js',
-        'tests/adminOrders.test.js',
-      ],
-    },
     hookTimeout: 10000,
   },
 });
