@@ -3,8 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     globals: true,
-    // Unit + existing API tests; integration tests use vitest.integration.config.js
-    include: ['test/**/*.test.js', 'tests/*.test.js'],
+    // Shared by both layers; the test path is passed on the command line (see package.json).
     // Each test file gets its own in-memory SQLite, never touching database.sqlite
     env: { DB_PATH: ':memory:' },
     fileParallelism: false,

@@ -2,7 +2,7 @@ const {
   calculateShipping,
   validateShippingInput,
   SHIPPING_METHODS,
-} = require('../src/utils/shipping');
+} = require('../../src/utils/shipping');
 
 const { HOME_DELIVERY, CONVENIENCE_STORE } = SHIPPING_METHODS;
 

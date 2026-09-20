@@ -13,7 +13,7 @@ npm run dev:css    # Tailwind watch mode（另開 terminal）
 npm run css:build  # 建置並 minify CSS
 npm run openapi    # 產生 OpenAPI spec（swagger-jsdoc）
 npm test                  # test:unit + test:integration
-npm run test:unit         # Unit 測試（test/ 與 tests/*.test.js，記憶體 DB）
+npm run test:unit         # Unit 測試（tests/unit/，純函式）
 npm run test:integration  # Integration 測試（tests/integration/，記憶體 DB）
 npm run test:e2e          # Playwright E2E（需先 npm start；E2E_CDP_URL 可 attach 既有 Chrome）
 npm run postman           # 產生 openapi.json 與 Postman Collection（postman/）

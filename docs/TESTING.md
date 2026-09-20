@@ -4,8 +4,8 @@
 
 | 層級 | 工具 | 設定檔 | 資料庫 |
 |------|------|--------|--------|
-| Unit（含原有 API 測試） | Vitest 2.x + supertest | `vitest.config.js` | 記憶體 SQLite（`DB_PATH=:memory:`） |
-| Integration | Vitest 2.x + supertest | `vitest.integration.config.js` | 記憶體 SQLite（`DB_PATH=:memory:`） |
+| Unit | Vitest 2.x（純函式，不經 HTTP／DB） | `vitest.config.js` | 不使用 |
+| Integration | Vitest 2.x + supertest | `vitest.config.js` | 記憶體 SQLite（`DB_PATH=:memory:`） |
 | E2E | Playwright | `playwright.config.js` | 已啟動 server 的 `database.sqlite`（會真實新增訂單） |
 
 - Vitest 測試直接打 Express app，不 mock 資料庫（使用真實 SQLite 引擎，但為記憶體資料庫）
@@ -15,42 +15,35 @@
 
 | 檔案 | 說明 | 依賴 |
 |------|------|------|
-| `test/shipping.test.js` | Shipping 模組單元測試（直接 require `src/utils/shipping.js`，不經 API／DB） | 無 |
+| `tests/unit/shipping.test.js` | Shipping 模組單元測試（直接 require `src/utils/shipping.js`，不經 API／DB） | 無 |
 | `tests/setup.js` | 輔助函式（getAdminToken、registerUser） | 無 |
-| `tests/auth.test.js` | 註冊、登入、個人資料 | 無 |
-| `tests/products.test.js` | 商品列表、詳情 | 需有商品資料（seed） |
-| `tests/cart.test.js` | 購物車 CRUD，含雙模式認證 | 需有商品資料 |
-| `tests/orders.test.js` | 訂單建立、列表、詳情、付款 | 需有購物車商品 |
-| `tests/adminProducts.test.js` | 後台商品 CRUD | 需 admin token |
-| `tests/adminOrders.test.js` | 後台訂單列表、詳情 | 需有訂單資料 |
+| `tests/integration/auth.test.js` | 註冊、登入、個人資料 | 無 |
+| `tests/integration/products.test.js` | 商品列表、詳情 | 需有商品資料（seed） |
+| `tests/integration/cart.test.js` | 購物車 CRUD，含雙模式認證 | 需有商品資料 |
+| `tests/integration/orders.test.js` | 訂單建立、列表、詳情、付款 | 需有購物車商品 |
+| `tests/integration/adminProducts.test.js` | 後台商品 CRUD | 需 admin token |
+| `tests/integration/adminOrders.test.js` | 後台訂單列表、詳情 | 需有訂單資料 |
 | `tests/integration/order-flow.test.js` | 會員 → 購物車 → 建立含配送資訊的訂單，驗證 DB 寫入、庫存、購物車與失敗 rollback | 需有商品資料（seed） |
 | `e2e/checkout-payment.spec.js` | 登入 → 加入購物車 → 結帳 → 綠界網路 ATM（土地銀行）付款 → 驗證已付款 | 需 server 已啟動 |
 
 ## 執行順序與依賴
 
-測試**必須循序執行**，順序固定於 `vitest.config.js`：
+`fileParallelism: false`：測試檔一次只跑一個，不並行。這是為了避免多個檔案同時操作各自的記憶體資料庫時互相干擾執行時間與輸出。
 
-```
-auth → products → cart → orders → adminProducts → adminOrders
-```
-
-- `fileParallelism: false` 確保不並行執行
-- `orders` 測試依賴 `cart` 測試建立的購物車狀態
-- `adminOrders` 測試依賴 `orders` 測試建立的訂單
-
-**不要任意調整 `sequence.files` 的順序。**
+- **檔案之間沒有順序依賴**：`npx vitest run --sequence.shuffle.files` 打亂檔案順序後仍全數通過
+- **單一檔案內部有順序依賴**：同一個 `describe` 內的測試會沿用前面建立的 token 與資料，`npx vitest run --sequence.shuffle.tests` 會失敗。新增測試時請維持檔案內的先後關係
 
 ## 執行測試
 
 ```bash
 npm test                  # test:unit + test:integration
-npm run test:unit         # test/**/*.test.js 與 tests/*.test.js（含 Shipping 單元測試與原有 API 測試）
-npm run test:integration  # tests/integration/**/*.test.js
+npm run test:unit         # tests/unit/（純函式測試）
+npm run test:integration  # tests/integration/（走 API 與資料庫）
 npm run test:e2e          # Playwright E2E（需先啟動 server）
 npm run postman           # 重新產生 openapi.json 並轉換為 Postman Collection
 ```
 
-`vitest.config.js` 的 `include` 不會遞迴進 `tests/integration/`，因此 unit 與 integration 兩組測試互不重複。
+兩個指令共用 `vitest.config.js`，差別只在指令行傳入的測試路徑，因此兩組測試互不重複。
 
 ### Integration Test 情境
 
@@ -109,12 +102,11 @@ Workflow：`.github/workflows/test.yml`
 
 宅配基本運費、超商取貨費用、小計 1,499、小計 1,500 免運、偏遠地區附加費、當日急件附加費、多項附加費同時成立、滿額免運與附加費同時成立；另含超商滿 1,500 不免運、非法配送方式與非法小計的防呆。
 
-Vitest 不支援 watch mode 與 `vitest.config.js` 中的 `sequence.files` 同時使用，請一律用 `vitest run`（即 `npm test`）。
 
 ## 輔助函式（tests/setup.js）
 
 ```javascript
-const { app, request, getAdminToken, registerUser } = require('./setup');
+const { app, request, getAdminToken, registerUser } = require('../setup');
 ```
 
 | 函式 | 說明 | 回傳 |
@@ -126,15 +118,15 @@ const { app, request, getAdminToken, registerUser } = require('./setup');
 
 ## 撰寫新測試
 
-1. 在 `tests/` 建立 `xxx.test.js`
-2. 在 `vitest.config.js` 的 `sequence.files` 加入正確位置
-3. 使用 `setup.js` 的輔助函式，避免重複實作 auth 流程
-4. 確認測試不依賴外部 DB 狀態（或依賴的資料是更早的測試所建立的）
+1. 依測試性質選資料夾：只驗純函式放 `tests/unit/`，需要打 API 或碰資料庫放 `tests/integration/`
+2. 檔名為 `xxx.test.js`，不需要登記到任何設定檔（指令直接掃該資料夾）
+3. 使用 `tests/setup.js` 的輔助函式，避免重複實作 auth 流程
+4. 確認測試不依賴其他測試檔的執行結果；同一檔案內部的先後關係則需自行維持
 
 範例：
 
 ```javascript
-const { app, request, registerUser } = require('./setup');
+const { app, request, registerUser } = require('../setup');
 
 describe('My Feature', () => {
   let token;

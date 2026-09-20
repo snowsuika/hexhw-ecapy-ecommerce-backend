@@ -11,8 +11,7 @@
 ├── server.js               # 進入點，監聽 PORT，啟動前驗證 JWT_SECRET
 ├── generate-openapi.js     # 產生 openapi.json 的腳本
 ├── swagger-config.js       # swagger-jsdoc 設定
-├── vitest.config.js        # Unit 測試設定（記憶體 DB）
-├── vitest.integration.config.js # Integration 測試設定（記憶體 DB）
+├── vitest.config.js        # Vitest 共用設定（記憶體 DB；測試路徑由指令行傳入）
 ├── playwright.config.js    # E2E 測試設定（使用已啟動的 server）
 ├── public/
 │   ├── css/
@@ -59,18 +58,18 @@
 ├── e2e/
 │   ├── fixtures.js         # 瀏覽器來源（E2E_CDP_URL attach 或 Playwright Chromium）
 │   └── checkout-payment.spec.js # 結帳 + 綠界網路 ATM 付款 E2E
-├── test/
-│   └── shipping.test.js    # Shipping 模組單元測試（不經 API／DB）
 └── tests/
     ├── setup.js            # 測試輔助函式（getAdminToken、registerUser）
-    ├── auth.test.js
-    ├── products.test.js
-    ├── cart.test.js
-    ├── orders.test.js
-    ├── adminProducts.test.js
-    ├── adminOrders.test.js
-    └── integration/
-        └── order-flow.test.js # 建單流程整合測試（DB 寫入、庫存、rollback）
+    ├── unit/
+    │   └── shipping.test.js    # Shipping 模組單元測試（不經 API／DB）
+    └── integration/            # 走 API 與記憶體資料庫
+        ├── auth.test.js
+        ├── products.test.js
+        ├── cart.test.js
+        ├── orders.test.js
+        ├── adminProducts.test.js
+        ├── adminOrders.test.js
+        └── order-flow.test.js  # 建單流程整合測試（DB 寫入、庫存、rollback）
 ```
 
 ## 啟動流程
